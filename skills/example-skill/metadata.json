@@ -1,0 +1,10 @@
+{
+  "version": "1.0.0",
+  "organization": "Your Organization",
+  "date": "January 2026",
+  "abstract": "Example skill demonstrating the Agent Skills format. Use this as a template for creating custom skills that extend AI coding agent capabilities.",
+  "references": [
+    "https://agentskills.io",
+    "https://github.com/anthropics/skills"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "version": "1.0.0",
+  "organization": "Your Organization",
+  "date": "January 2026",
+  "abstract": "A brief abstract describing what this skill does and its purpose.",
+  "references": [
+    "https://agentskills.io",
+    "https://github.com/your-org/your-repo"
+  ]
+}
