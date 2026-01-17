@@ -29,10 +29,13 @@ skills/
     │   ├── SKILL.md
     │   └── rules/
     │
-    └── documentation/
-        ├── SKILL.md
-        └── scripts/
-            └── generate.sh
+    ├── documentation/
+    │   ├── SKILL.md
+    │   └── scripts/
+    │       └── generate.sh
+    │
+    └── github-pr-review-workflow/
+        └── SKILL.md
 ```
 
 ## File Descriptions

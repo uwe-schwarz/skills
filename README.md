@@ -49,6 +49,23 @@ Automated documentation generation and management guidelines.
 - Code comments
 - Inline documentation (JSDoc/Docstring)
 
+### github-pr-review-workflow
+
+Complete workflow for handling GitHub PR reviews using the gh-pr-review extension.
+
+**Use when:**
+- Reviewing pull requests and addressing feedback
+- Resolving review threads with explanations
+- Managing PR review process systematically
+- Using GitHub CLI gh-pr-review extension
+
+**Workflow covers:**
+- Listing and analyzing review threads
+- Implementing fixes based on feedback
+- Running tests (unit, lint, typecheck)
+- Replying to review threads with explanations
+- Resolving threads and committing changes
+
 ## Installation
 
 ```bash
