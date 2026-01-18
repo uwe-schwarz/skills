@@ -194,7 +194,45 @@ eslint
 
 ---
 
-### 6. Reply to Review Threads
+### 6. Commit and Push Changes
+
+**Stage and commit changes:**
+
+```bash
+# Check status
+git status
+
+# Stage modified files
+git add <files>
+
+# Commit with clear message
+git commit -m "<type>(<scope>): <description>
+
+# Example:
+git commit -m "refactor(emails): centralize from name logic and improve sanitization
+
+- Extract RESEND_FROM_NAME constant to lib/emails/from-address.ts
+- Replace duplicated logic in lib/auth.ts and app/actions/contact.ts
+- Improve formatFromAddress sanitization (RFC 5322 chars)
+- Add test cases for additional sanitization patterns"
+```
+
+**Push to remote:**
+
+```bash
+git push
+```
+
+**Verify working tree:**
+
+```bash
+git status
+# Should show: "nothing to commit, working tree clean"
+```
+
+---
+
+### 7. Reply to Review Threads
 
 **Reply with explanation of fixes:**
 
@@ -244,19 +282,23 @@ EOF
 
 ---
 
-### 7. Wait for Follow-ups and Resolve Threads
+### 8. Wait for Follow-ups and Resolve Threads
 
-**After implementing fixes and replying to all open comments, wait up to 5 minutes for follow-ups:**
+**After implementing fixes, pushing the commit, and replying to all open comments, wait up to 5 minutes for follow-ups:**
 
 ```bash
-# Wait for reviewer response (up to 5 minutes)
-sleep 300
+# Wait for a minute for reviewer response
+sleep 60
 
 # Re-check for new replies or new threads
 gh pr-review threads list --pr <PR_NUMBER> --repo <OWNER/REPO>
 ```
 
-**If there is a confirmation or no response after the wait, resolve the thread:**
+Do this step up to 5 times to wait for up to 5 minutes.
+
+**If there is a follow-up hint, address it (steps 3-7) and then resolve.**
+
+**If there is a confirmation, resolve the thread:**
 
 ```bash
 gh pr-review threads resolve \
@@ -273,8 +315,6 @@ gh pr-review threads resolve \
   "is_resolved": true
 }
 ```
-
-**If there is a follow-up hint, address it and then resolve.**
 
 **Batch resolve multiple threads:**
 
@@ -293,44 +333,6 @@ gh pr-review threads resolve --pr <PR_NUMBER> --repo <OWNER/REPO> --thread-id <T
 2. Reply to active threads explaining fixes (or non-changes)
 3. Wait up to 5 minutes for a response
 4. Resolve active threads after confirmation or no response
-
----
-
-### 8. Commit and Push Changes
-
-**Stage and commit changes:**
-
-```bash
-# Check status
-git status
-
-# Stage modified files
-git add <files>
-
-# Commit with clear message
-git commit -m "<type>(<scope>): <description>
-
-# Example:
-git commit -m "refactor(emails): centralize from name logic and improve sanitization
-
-- Extract RESEND_FROM_NAME constant to lib/emails/from-address.ts
-- Replace duplicated logic in lib/auth.ts and app/actions/contact.ts
-- Improve formatFromAddress sanitization (RFC 5322 chars)
-- Add test cases for additional sanitization patterns"
-```
-
-**Push to remote:**
-
-```bash
-git push
-```
-
-**Verify working tree:**
-
-```bash
-git status
-# Should show: "nothing to commit, working tree clean"
-```
 
 ---
 
@@ -368,7 +370,12 @@ bun run test:unit -- tests/path/to/file.test.ts
 bun run typecheck
 bun run lint
 
-# 6. Reply to threads
+# 6. Commit and push
+git add lib/emails/from-address.ts
+git commit -m "fix: address PR review feedback"
+git push
+
+# 7. Reply to threads
 gh pr-review comments reply --pr <PR_NUMBER> --repo <OWNER/REPO> \
   --thread-id <THREAD_ID> --body "$(cat <<'EOF'
 @reviewer Thanks for review! I've addressed all feedback:
@@ -380,16 +387,11 @@ Changes in abc1234.
 EOF
 )"
 
-# 7. Wait then resolve threads
+# 8. Wait then resolve threads
 sleep 300
 gh pr-review threads list --pr <PR_NUMBER> --repo <OWNER/REPO>
 gh pr-review threads resolve --pr <PR_NUMBER> --repo <OWNER/REPO> \
   --thread-id <THREAD_ID>
-
-# 8. Commit and push
-git add lib/emails/from-address.ts
-git commit -m "fix: address PR review feedback"
-git push
 
 # 9. Verify
 gh pr-review threads list --pr <PR_NUMBER> --repo <OWNER/REPO>
