@@ -34,10 +34,12 @@ PR Review Request
   ├─ Get PR number/repo context
   ├─ List all review threads
   ├─ Analyze feedback and comments
+  ├─ Validate whether each comment applies and explain decisions
   ├─ Implement fixes in code
   ├─ Run tests (unit + lint + typecheck)
-  ├─ Reply to review threads with explanations
-  ├─ Resolve review threads
+  ├─ Reply to all open review threads with explanations
+  ├─ Wait up to 5 minutes for follow-up
+  ├─ Resolve review threads (or address follow-ups)
   └─ Commit and push changes
 ```
 
@@ -60,7 +62,7 @@ gh pr view --json title,author,state,reviews
 git remote get-url origin
 ```
 
-**Output:** PR number (e.g., `174`) and repo (e.g., `degitag/schlaufabrik-de`)
+**Output:** PR number (e.g., `<PR_NUMBER>`) and repo (e.g., `<OWNER/REPO>`)
 
 ---
 
@@ -73,7 +75,7 @@ git remote get-url origin
 gh pr-review threads list --pr <PR_NUMBER> --repo <OWNER/REPO>
 
 # Example:
-gh pr-review threads list --pr 174 --repo degitag/schlaufabrik-de
+gh pr-review threads list --pr <PR_NUMBER> --repo <OWNER/REPO>
 ```
 
 **Response format:**
@@ -81,11 +83,11 @@ gh pr-review threads list --pr 174 --repo degitag/schlaufabrik-de
 ```json
 [
   {
-    "threadId": "PRRT_kwDOQkQlKs5p24lu",
+    "threadId": "<THREAD_ID>",
     "isResolved": false,
     "updatedAt": "2026-01-17T22:48:36Z",
-    "path": "lib/emails/from-address.ts",
-    "line": 11,
+    "path": "path/to/file.ts",
+    "line": 42,
     "isOutdated": false
   }
 ]
@@ -126,6 +128,12 @@ cat <path>
 - **High priority**: Security issues, bugs, breaking changes
 - **Medium priority**: Code quality, maintainability, test coverage
 - **Low priority**: Style, documentation, nice-to-haves
+
+**Validate applicability before changing code (required):**
+
+- Confirm each comment is accurate and relevant to the current code.
+- If a suggestion is incorrect, outdated, or doesn’t make sense in this codebase, **reply with a detailed explanation** of why it was not implemented.
+- Do not skip a change simply because it is time-consuming—either implement it or explain clearly why it should not be done.
 
 ---
 
@@ -210,16 +218,16 @@ gh pr-review comments reply \
 
 ```bash
 gh pr-review comments reply \
-  --pr 174 \
-  --repo degitag/schlaufabrik-de \
-  --thread-id PRRT_kwDOQkQlKs5p24lu \
+  --pr <PR_NUMBER> \
+  --repo <OWNER/REPO> \
+  --thread-id <THREAD_ID> \
   --body "$(cat <<'EOF'
-@gemini-code-assist Thanks for the feedback! I've addressed your suggestions:
+@reviewer Thanks for the feedback! I've addressed your suggestions:
 
-1. Extracted RESEND_FROM_NAME constant to lib/emails/from-address.ts
-2. Replaced duplicated logic in both lib/auth.ts and app/actions/contact.ts
-3. Improved sanitization to strip RFC 5322 unsafe chars
-4. Added test coverage for new patterns
+1. Applied the requested refactor in the relevant module
+2. Removed duplicated logic in the affected call sites
+3. Improved sanitization to match the project’s expectations
+4. Added/updated tests for the new behavior
 
 Changes committed in abc1234, all tests pass.
 EOF
@@ -227,12 +235,28 @@ EOF
 ```
 
 **Note:** Use heredoc for multi-line bodies to avoid shell escaping issues.
+**Note:** Always start replies with `@reviewer` (e.g., `@gemini-code-assist ...`) after you push changes.
+
+**Reply to all open threads first:**
+
+1. Respond to every open comment with what you did **or** why it was not done.
+2. Only after all replies are posted, proceed to the wait/resolve phase.
 
 ---
 
-### 7. Resolve Review Threads
+### 7. Wait for Follow-ups and Resolve Threads
 
-**After implementing fixes and replying, resolve the thread:**
+**After implementing fixes and replying to all open comments, wait up to 5 minutes for follow-ups:**
+
+```bash
+# Wait for reviewer response (up to 5 minutes)
+sleep 300
+
+# Re-check for new replies or new threads
+gh pr-review threads list --pr <PR_NUMBER> --repo <OWNER/REPO>
+```
+
+**If there is a confirmation or no response after the wait, resolve the thread:**
 
 ```bash
 gh pr-review threads resolve \
@@ -250,22 +274,25 @@ gh pr-review threads resolve \
 }
 ```
 
+**If there is a follow-up hint, address it and then resolve.**
+
 **Batch resolve multiple threads:**
 
 ```bash
 # Resolve outdated threads first
-gh pr-review threads resolve --pr 174 --repo degitag/schlaufabrik-de --thread-id PRRT_kwDOQkQlKs5p23X5
-gh pr-review threads resolve --pr 174 --repo degitag/schlaufabrik-de --thread-id PRRT_kwDOQkQlKs5p23X7
+gh pr-review threads resolve --pr <PR_NUMBER> --repo <OWNER/REPO> --thread-id <THREAD_ID_OUTDATED_1>
+gh pr-review threads resolve --pr <PR_NUMBER> --repo <OWNER/REPO> --thread-id <THREAD_ID_OUTDATED_2>
 
 # Then resolve active threads after replying
-gh pr-review threads resolve --pr 174 --repo degitag/schlaufabrik-de --thread-id PRRT_kwDOQkQlKs5p24lu
+gh pr-review threads resolve --pr <PR_NUMBER> --repo <OWNER/REPO> --thread-id <THREAD_ID_ACTIVE>
 ```
 
 **Strategy:**
 
 1. Resolve outdated threads (isOutdated: true) - no reply needed
-2. Reply to active threads explaining fixes
-3. Resolve active threads after reply
+2. Reply to active threads explaining fixes (or non-changes)
+3. Wait up to 5 minutes for a response
+4. Resolve active threads after confirmation or no response
 
 ---
 
@@ -327,24 +354,24 @@ gh pr view --json number
 git remote get-url origin
 
 # 2. List review threads
-gh pr-review threads list --pr 174 --repo degitag/schlaufabrik-de
+gh pr-review threads list --pr <PR_NUMBER> --repo <OWNER/REPO>
 
 # 3. Read comments and files
-gh api repos/degitag/schlaufabrik-de/pulls/174/comments --jq '.[] | {id,body,path,line}'
-cat lib/emails/from-address.ts
+gh api repos/<OWNER>/<REPO>/pulls/<PR_NUMBER>/comments --jq '.[] | {id,body,path,line}'
+cat path/to/file.ts
 
 # 4. Implement fixes
-edit lib/emails/from-address.ts <oldString> <newString>
+edit path/to/file.ts <oldString> <newString>
 
 # 5. Run tests
-bun run test:unit -- tests/lib/emails-from-address.test.ts
+bun run test:unit -- tests/path/to/file.test.ts
 bun run typecheck
 bun run lint
 
 # 6. Reply to threads
-gh pr-review comments reply --pr 174 --repo degitag/schlaufabrik-de \
-  --thread-id PRRT_kwDOQkQlKs5p24lu --body "$(cat <<'EOF'
-Thanks for review! I've addressed all feedback:
+gh pr-review comments reply --pr <PR_NUMBER> --repo <OWNER/REPO> \
+  --thread-id <THREAD_ID> --body "$(cat <<'EOF'
+@reviewer Thanks for review! I've addressed all feedback:
 1. Centralized logic
 2. Improved sanitization
 3. Added tests
@@ -353,9 +380,11 @@ Changes in abc1234.
 EOF
 )"
 
-# 7. Resolve threads
-gh pr-review threads resolve --pr 174 --repo degitag/schlaufabrik-de \
-  --thread-id PRRT_kwDOQkQlKs5p24lu
+# 7. Wait then resolve threads
+sleep 300
+gh pr-review threads list --pr <PR_NUMBER> --repo <OWNER/REPO>
+gh pr-review threads resolve --pr <PR_NUMBER> --repo <OWNER/REPO> \
+  --thread-id <THREAD_ID>
 
 # 8. Commit and push
 git add lib/emails/from-address.ts
@@ -363,7 +392,7 @@ git commit -m "fix: address PR review feedback"
 git push
 
 # 9. Verify
-gh pr-review threads list --pr 174 --repo degitag/schlaufabrik-de
+gh pr-review threads list --pr <PR_NUMBER> --repo <OWNER/REPO>
 git status
 ```
 
