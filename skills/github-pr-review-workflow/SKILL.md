@@ -100,6 +100,13 @@ gh pr-review threads list --pr <PR_NUMBER> --repo <OWNER/REPO>
 - `isOutdated`: Whether code has changed since comment
 - `path` + `line`: File location
 
+If all review threads are resolved or none are present, search for normal comments and analyse them:
+
+```bash
+gh pr view <PR_NUMBER> --comments --json author,comments,reviews
+```
+
+
 ---
 
 ### 3. Read and Analyze Feedback
@@ -274,6 +281,17 @@ EOF
 
 **Note:** Use heredoc for multi-line bodies to avoid shell escaping issues.
 **Note:** Always start replies with `@reviewer` (e.g., `@gemini-code-assist ...` or `@greptile …`) after you push changes. There can be multiple reviewers, so always look for the exact comment from which reviewer the comment is.
+
+If this was a normal comment and not a review (see step 2), you can use this to answer:
+
+```bash
+gh pr comment <PR_NUMBER> --body "$(cat <<'EOF'
+@reviewer … <same as above>
+EOF
+)"
+```
+
+You can also just react to the comment if appropriate.
 
 **Reply to all open threads first:**
 
