@@ -273,7 +273,7 @@ EOF
 ```
 
 **Note:** Use heredoc for multi-line bodies to avoid shell escaping issues.
-**Note:** Always start replies with `@reviewer` (e.g., `@gemini-code-assist ...`) after you push changes.
+**Note:** Always start replies with `@reviewer` (e.g., `@gemini-code-assist ...` or `@greptile …`) after you push changes. There can be multiple reviewers, so always look for the exact comment from which reviewer the comment is.
 
 **Reply to all open threads first:**
 
