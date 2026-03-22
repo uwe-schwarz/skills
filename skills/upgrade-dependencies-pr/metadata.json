@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "organization": "Personal",
+  "date": "March 2026",
+  "abstract": "Upgrades JavaScript and TypeScript project dependencies to latest, removes exact pinned semver specs, handles small upgrade fallout, files larger follow-up issues, and ships the result as a GitHub pull request.",
+  "references": [
+    "https://docs.npmjs.com/cli/v8/commands/npm-update/",
+    "https://pnpm.io/cli/update",
+    "https://yarnpkg.com/cli/up",
+    "https://bun.sh/docs/pm/cli/update"
+  ]
+}

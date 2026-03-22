@@ -1,0 +1,4 @@
+interface:
+  display_name: "Upgrade Dependencies PR"
+  short_description: "Upgrade deps, handle fallout, ship a PR"
+  default_prompt: "Use $upgrade-dependencies-pr to update this project's dependencies to latest, fix small upgrade fallout, create follow-up issues for larger relevant changes, and open a PR."
