@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cost Estimate"
+  short_description: "Estimate rebuild cost, time, and AI-agent ROI"
+  default_prompt: "Use $cost-estimate to analyze this repository and produce a stakeholder-facing estimate for engineering hours, calendar time, market-rate cost, and optional AI-agent ROI."

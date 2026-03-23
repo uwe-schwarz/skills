@@ -1,0 +1,10 @@
+{
+  "version": "1.0.0",
+  "organization": "Personal",
+  "date": "March 2026",
+  "abstract": "Estimates engineering effort, calendar time, market-rate replacement cost, and optional AI-agent ROI for a repository by combining codebase analysis, delivery complexity, and current market rate research.",
+  "references": [
+    "https://agentskills.io",
+    "https://github.com/anthropics/skills"
+  ]
+}

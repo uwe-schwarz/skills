@@ -49,6 +49,23 @@ Automated documentation generation and management guidelines.
 - Code comments
 - Inline documentation (JSDoc/Docstring)
 
+### cost-estimate
+
+Estimate engineering effort, calendar time, market-rate replacement cost, and optional AI-agent ROI for a repository.
+
+**Use when:**
+- Estimating rebuild or replacement cost of a codebase
+- Producing stakeholder-facing budget or timeline ranges
+- Sanity-checking agency, contractor, or internal delivery quotes
+- Valuing work created by Claude, Codex, OpenCode, Crush, or another AI coding agent
+
+**Outputs include:**
+- Codebase metrics and complexity drivers
+- Low/base/high engineering-hour estimates
+- Calendar-time scenarios by company type
+- Engineering-only and full-team cost ranges
+- Optional AI-agent ROI and value-per-hour analysis
+
 ### github-pr-review-workflow
 
 Complete workflow for handling GitHub PR reviews using the gh-pr-review extension.
