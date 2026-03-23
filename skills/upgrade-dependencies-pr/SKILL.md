@@ -1,30 +1,31 @@
 ---
 name: upgrade-dependencies-pr
-description: Update a JavaScript or TypeScript project's dependencies to the latest published versions, remove exact pinned semver specs, evaluate release impact against the codebase and official release notes, apply required small upgrade fixes, open GitHub issues for larger or optional follow-up work, and finish by creating a branch, commit, push, and PR. Use when asked to upgrade dependencies, refresh packages, unpin dependency versions, or ship an end-to-end dependency maintenance PR.
+description: Update a JavaScript, TypeScript, or Python project's dependencies to the latest published versions, remove exact pinned JS semver specs when appropriate, evaluate release impact against the codebase and official release notes, apply required small upgrade fixes, open GitHub issues for larger or optional follow-up work, and finish by creating a branch, commit, push, and PR. Use when asked to upgrade dependencies, refresh packages, unpin dependency versions, or ship an end-to-end dependency maintenance PR.
 license: MIT
 metadata:
   author: uwe
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Upgrade Dependencies PR
 
-Use this skill to take a JS or TS repository from outdated dependencies to a reviewable dependency-upgrade PR in one pass.
+Use this skill to take a JavaScript, TypeScript, or Python repository from outdated dependencies to a reviewable dependency-upgrade PR in one pass.
 
 ## Preconditions
 
 - Confirm the repository uses Git and GitHub, and that `gh` is authenticated before attempting issue or PR creation.
 - Stop if the working tree contains unrelated user changes that would be risky to mix into the dependency branch.
-- Detect the package manager from `packageManager`, lockfiles, and workspace config before changing anything.
+- Detect the ecosystem and package manager from tracked manifests, lockfiles, and workspace config before changing anything.
 - Read [references/package-manager-playbook.md](references/package-manager-playbook.md) after detection and use only the relevant section.
 
 ## Workflow
 
 ### 1. Inventory the project
 
-- Find every tracked `package.json` that belongs to the repo and identify whether the repo is a single package or a workspace/monorepo.
-- Record the current branch, package manager, lockfiles, workspace layout, and available validation scripts such as `typecheck`, `lint`, `test`, `test:unit`, and `build`.
-- Flag framework- or runtime-critical packages first: frameworks, bundlers, test runners, linters, TypeScript, Node tooling, auth, database clients, SDKs, and deployment libraries.
+- Find the tracked dependency manifests that actually govern this repo. For JS/TS, inspect `package.json` files plus lockfiles and workspace config. For Python, inspect `pyproject.toml`, `uv.lock`, `requirements*.in`, `requirements*.txt`, `constraints*.txt`, `setup.cfg`, and `setup.py`.
+- Identify whether the repo is JS/TS, Python, or mixed. Do not reject a repo just because there is no root `package.json`; use the manifests that are actually present.
+- Record the current branch, package manager, lockfiles, workspace layout, and available validation commands such as `typecheck`, `lint`, `test`, `test:unit`, `build`, `pytest`, `ruff`, `mypy`, and project-specific CI entrypoints.
+- Flag framework- or runtime-critical packages first: frameworks, bundlers, test runners, linters, TypeScript, Node tooling, auth, database clients, SDKs, deployment libraries, Python web frameworks, ORMs, packaging/build backends, and lint/type-check tooling.
 
 ### 2. Create the branch first
 
@@ -34,9 +35,12 @@ Use this skill to take a JS or TS repository from outdated dependencies to a rev
 ### 3. Upgrade manifests and lockfiles
 
 - Use the package-manager-specific commands from the reference file to move direct dependencies to their latest published versions.
-- Update dependency entries in `dependencies`, `devDependencies`, `optionalDependencies`, and `peerDependencies` when the manifest owns those versions. Preserve `workspace:`, `file:`, `link:`, `portal:`, `catalog:`, git, URL, and alias specs unless there is a clear reason to change them.
-- After the main upgrade step, run `node <skill-dir>/scripts/unpin-semver-ranges.mjs <repo-root>` to convert exact `x.y.z` specs into ranged versions. Re-run the package manager install or update step if the manifests changed.
-- Do not leave exact pinned semver strings in package manifests unless the repo explicitly requires exact versions and the user asked to keep them.
+- For JS/TS manifests, update entries in `dependencies`, `devDependencies`, `optionalDependencies`, and `peerDependencies` when the manifest owns those versions. Preserve `workspace:`, `file:`, `link:`, `portal:`, `catalog:`, git, URL, and alias specs unless there is a clear reason to change them.
+- For Python manifests, update dependency declarations in `project.dependencies`, optional-dependency groups, tool-managed dependency groups, `requirements*.in`, `requirements*.txt`, and `constraints*.txt` only when those files are repo-owned sources of truth.
+- Prefer `uv` for clearly uv-managed repos (`uv.lock`, `tool.uv`, or an established `uv` workflow). For `requirements.in` / compiled `requirements.txt` repos, reuse the repo's existing compiler workflow with `uv pip compile` or `pip-compile` if present. For hand-maintained `requirements.txt` repos, update the tracked requirement specifiers directly, then re-install or sync with the repo's existing tool.
+- Preserve editable installs, local paths, VCS requirements, direct URLs, workspace links, and generated file headers unless there is a concrete reason to change them.
+- After the main JS/TS upgrade step, run `node <skill-dir>/scripts/unpin-semver-ranges.mjs <repo-root>` to convert exact `x.y.z` specs into ranged versions. Re-run the package manager install or update step if the manifests changed.
+- Do not leave exact pinned JS semver strings in `package.json` files unless the repo explicitly requires exact versions and the user asked to keep them. For Python, preserve the repo's existing pinning strategy unless the user asked to loosen it.
 
 ### 4. Assess relevance before writing the summary
 
@@ -63,7 +67,7 @@ Use this skill to take a JS or TS repository from outdated dependencies to a rev
 
 ### 7. Verify aggressively
 
-- Run the smallest complete validation set the repo supports. Prefer, in order when available: `typecheck`, `lint`, `test`, `test:unit`, `build`.
+- Run the smallest complete validation set the repo supports. Prefer the repo's documented CI entrypoint when present. Otherwise use the relevant subset of: `typecheck`, `lint`, `test`, `test:unit`, `build`, `pytest`, `ruff check`, `mypy`, `pyright`.
 - If the repo has a documented CI entrypoint, use it.
 - If an upgrade breaks validation, fix it if the remediation is required to keep the repository healthy. Do not ship a knowingly broken dependency PR.
 
@@ -79,14 +83,16 @@ Use this skill to take a JS or TS repository from outdated dependencies to a rev
 
 - Prefer primary documentation over blog posts or secondary summaries for release impact.
 - Required compatibility work belongs in the PR. Optional adoption work belongs in an issue.
-- If the repo is not JavaScript or TypeScript, or does not use a supported package manager, stop and say so rather than forcing the workflow.
+- If the repo is Python, support `uv`, `pip`, and existing `pip-tools` style compile/sync workflows instead of rejecting it as non-JS.
+- If the repo is mixed-language, use the manifests that are actually in scope for the requested upgrade instead of assuming the root ecosystem.
+- Stop only if the repo is neither JS/TS nor Python, or if it uses dependency tooling that this skill does not yet support cleanly.
 - If GitHub auth, push access, or PR creation is unavailable, finish the local upgrade work and report the blocker clearly.
 
 ## Scripts
 
 ### `scripts/unpin-semver-ranges.mjs`
 
-Normalize exact semver strings in `package.json` files to caret ranges while preserving workspace, file, git, URL, alias, and already-ranged specs.
+Normalize exact semver strings in `package.json` files to caret ranges while preserving workspace, file, git, URL, alias, and already-ranged specs. Use this only for JS/TS manifests.
 
 Usage:
 ```bash
