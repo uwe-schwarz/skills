@@ -1,8 +1,8 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "organization": "Personal",
   "date": "March 2026",
-  "abstract": "Upgrades JavaScript, TypeScript, or Python project dependencies to latest, removes exact pinned JS semver specs when appropriate, handles small upgrade fallout, files larger follow-up issues, and ships the result as a GitHub pull request.",
+  "abstract": "Upgrades JavaScript, TypeScript, or Python project dependencies to latest, removes exact pinned JS semver specs when appropriate, validates peer-range blockers before deciding whether to keep or hold back an upgrade, files relevant follow-up issues, and ships the result as a GitHub pull request.",
   "references": [
     "https://docs.npmjs.com/cli/v8/commands/npm-update/",
     "https://pnpm.io/cli/update",

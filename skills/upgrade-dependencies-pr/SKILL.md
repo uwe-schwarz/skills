@@ -4,7 +4,7 @@ description: Update a JavaScript, TypeScript, or Python project's dependencies t
 license: MIT
 metadata:
   author: uwe
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # Upgrade Dependencies PR
@@ -40,6 +40,7 @@ Use this skill to take a JavaScript, TypeScript, or Python repository from outda
 - Prefer `uv` for clearly uv-managed repos (`uv.lock`, `tool.uv`, or an established `uv` workflow). For `requirements.in` / compiled `requirements.txt` repos, reuse the repo's existing compiler workflow with `uv pip compile` or `pip-compile` if present. For hand-maintained `requirements.txt` repos, update the tracked requirement specifiers directly, then re-install or sync with the repo's existing tool.
 - Preserve editable installs, local paths, VCS requirements, direct URLs, workspace links, and generated file headers unless there is a concrete reason to change them.
 - After the main JS/TS upgrade step, run `node <skill-dir>/scripts/unpin-semver-ranges.mjs <repo-root>` to convert exact `x.y.z` specs into ranged versions. Re-run the package manager install or update step if the manifests changed.
+- If a JS/TS upgrade introduces peer-dependency warnings or peer-range mismatches, especially around framework, compiler, or toolchain major versions, do not immediately roll the package back. Keep the latest candidate installed long enough to run validation unless the package manager refuses to install or the repo has an explicit no-peer-warning policy.
 - Do not leave exact pinned JS semver strings in `package.json` files unless the repo explicitly requires exact versions and the user asked to keep them. For Python, preserve the repo's existing pinning strategy unless the user asked to loosen it.
 
 ### 4. Assess relevance before writing the summary
@@ -61,6 +62,7 @@ Use this skill to take a JavaScript, TypeScript, or Python repository from outda
 ### 6. Create follow-up issues for larger or optional work
 
 - Open a GitHub issue when an upgrade reveals a useful new feature worth adopting later, a migration that is too large for the dependency PR, or cleanup that would materially expand review scope.
+- Also open a GitHub issue when the latest version appears viable in code but is still blocked by upstream peer-range declarations or ecosystem support policy, and the dependency PR intentionally holds that package back.
 - Use `gh issue create`.
 - The issue body should name the package and version jump, explain why it matters to this repo, summarize the deferred work, and link the official source material plus the upgrading PR when available.
 - Do not create issues for noise. File issues only when the package change is genuinely relevant to the project.
@@ -69,6 +71,9 @@ Use this skill to take a JavaScript, TypeScript, or Python repository from outda
 
 - Run the smallest complete validation set the repo supports. Prefer the repo's documented CI entrypoint when present. Otherwise use the relevant subset of: `typecheck`, `lint`, `test`, `test:unit`, `build`, `pytest`, `ruff check`, `mypy`, `pyright`.
 - If the repo has a documented CI entrypoint, use it.
+- If the only blocker is a peer warning or peer-range mismatch, run the full relevant validation suite against the upgraded version before deciding whether to keep or revert it.
+- If that validation passes, make an explicit decision: either keep the upgraded version despite the warning and document the unsupported-peer state in the PR, or revert it, pin to the highest clearly supported version, and file a follow-up issue describing the upstream blocker and why the repo is intentionally one version behind.
+- If validation fails and the failure is attributable to the unsupported upgrade, revert to the highest clearly supported version and document that decision.
 - If an upgrade breaks validation, fix it if the remediation is required to keep the repository healthy. Do not ship a knowingly broken dependency PR.
 
 ### 8. Commit, push, and open the PR
@@ -76,13 +81,15 @@ Use this skill to take a JavaScript, TypeScript, or Python repository from outda
 - Stage only the dependency upgrade work and directly related fixes.
 - Use a commit title like `chore(deps): upgrade dependencies to latest`.
 - Push the branch and create a PR with `gh pr create`.
-- Make the PR body include notable package upgrades, required code or config fixes, issues created for deferred relevant work, and the validation commands that were run.
+- Make the PR body include notable package upgrades, required code or config fixes, issues created for deferred relevant work, the validation commands that were run, and any intentionally held-back packages with the reason.
 - Respect existing issue or PR templates when present.
 
 ## Decision Rules
 
 - Prefer primary documentation over blog posts or secondary summaries for release impact.
 - Required compatibility work belongs in the PR. Optional adoption work belongs in an issue.
+- Peer-dependency warnings are not an automatic rollback. Treat them as a compatibility signal that requires validation and an explicit keep-or-revert decision.
+- When a package only fails declared peer support but passes validation, either keep it with clear PR documentation or revert it and file an issue documenting the upstream blocker. Do not silently hold it back.
 - If the repo is Python, support `uv`, `pip`, and existing `pip-tools` style compile/sync workflows instead of rejecting it as non-JS.
 - If the repo is mixed-language, use the manifests that are actually in scope for the requested upgrade instead of assuming the root ecosystem.
 - Stop only if the repo is neither JS/TS nor Python, or if it uses dependency tooling that this skill does not yet support cleanly.
