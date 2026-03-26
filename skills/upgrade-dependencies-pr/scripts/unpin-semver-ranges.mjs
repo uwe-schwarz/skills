@@ -56,7 +56,6 @@ const preservePrefixes = [
 const preserveValues = new Set([
   "",
   "*",
-  "latest",
   "next",
   "beta",
   "alpha",
@@ -95,16 +94,70 @@ function shouldPreserve(version) {
   return preservePrefixes.some((prefix) => version.startsWith(prefix));
 }
 
-function normalizeSection(section) {
+async function resolveInstalledVersion(packageName, manifestDir) {
+  const searchDirs = [];
+  let currentDir = manifestDir;
+
+  while (true) {
+    searchDirs.push(currentDir);
+    if (currentDir === rootDir) {
+      break;
+    }
+
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) {
+      break;
+    }
+
+    currentDir = parentDir;
+  }
+
+  for (const dir of searchDirs) {
+    const packageJsonPath = path.join(dir, "node_modules", packageName, "package.json");
+
+    try {
+      const raw = await fs.readFile(packageJsonPath, "utf8");
+      const parsed = JSON.parse(raw);
+
+      if (
+        typeof parsed.version === "string" &&
+        exactSemverPattern.test(parsed.version)
+      ) {
+        return parsed.version;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+}
+
+async function normalizeSection(section, manifestDir) {
   if (!section || typeof section !== "object" || Array.isArray(section)) {
-    return { changed: false, updatedEntries: [] };
+    return { changed: false, updatedEntries: [], unresolvedLatest: [] };
   }
 
   let changed = false;
   const updatedEntries = [];
+  const unresolvedLatest = [];
 
   for (const [name, version] of Object.entries(section)) {
     if (typeof version !== "string") {
+      continue;
+    }
+
+    if (version === "latest") {
+      const installedVersion = await resolveInstalledVersion(name, manifestDir);
+
+      if (!installedVersion) {
+        unresolvedLatest.push(`${name}: latest`);
+        continue;
+      }
+
+      section[name] = `^${installedVersion}`;
+      changed = true;
+      updatedEntries.push(`${name}: latest -> ^${installedVersion}`);
       continue;
     }
 
@@ -117,45 +170,53 @@ function normalizeSection(section) {
     updatedEntries.push(`${name}: ${version} -> ^${version}`);
   }
 
-  return { changed, updatedEntries };
+  return { changed, updatedEntries, unresolvedLatest };
 }
 
 async function updatePackageJson(filePath) {
   const raw = await fs.readFile(filePath, "utf8");
   const parsed = JSON.parse(raw);
   const updates = [];
+  const unresolvedLatest = [];
   let changed = false;
 
   for (const sectionName of dependencySections) {
-    const result = normalizeSection(parsed[sectionName]);
-    if (!result.changed) {
-      continue;
+    const result = await normalizeSection(parsed[sectionName], path.dirname(filePath));
+    unresolvedLatest.push(
+      ...result.unresolvedLatest.map((entry) => `${sectionName}.${entry}`),
+    );
+    if (result.changed) {
+      changed = true;
+      updates.push(...result.updatedEntries.map((entry) => `${sectionName}.${entry}`));
     }
-
-    changed = true;
-    updates.push(...result.updatedEntries.map((entry) => `${sectionName}.${entry}`));
   }
 
   if (!changed) {
-    return null;
+    if (unresolvedLatest.length === 0) {
+      return null;
+    }
+
+    return { filePath, updates, unresolvedLatest };
   }
 
   await fs.writeFile(filePath, `${JSON.stringify(parsed, null, 2)}\n`);
-  return { filePath, updates };
+  return { filePath, updates, unresolvedLatest };
 }
 
 const manifests = await walk(rootDir);
 const results = [];
+let unresolvedLatestCount = 0;
 
 for (const manifestPath of manifests) {
   const result = await updatePackageJson(manifestPath);
   if (result) {
     results.push(result);
+    unresolvedLatestCount += result.unresolvedLatest.length;
   }
 }
 
 if (results.length === 0) {
-  console.log("No exact semver dependency ranges found.");
+  console.log("No exact semver dependency ranges or latest tags found.");
   process.exit(0);
 }
 
@@ -164,4 +225,14 @@ for (const result of results) {
   for (const update of result.updates) {
     console.log(`  ${update}`);
   }
+  for (const entry of result.unresolvedLatest) {
+    console.log(`  unresolved latest: ${entry}`);
+  }
+}
+
+if (unresolvedLatestCount > 0) {
+  console.error(
+    "Unable to resolve one or more latest tags from installed packages. Install dependencies first, then rerun this script.",
+  );
+  process.exit(2);
 }

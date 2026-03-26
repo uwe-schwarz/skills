@@ -1,10 +1,10 @@
 ---
 name: upgrade-dependencies-pr
-description: Update a JavaScript, TypeScript, or Python project's dependencies to the latest published versions, remove exact pinned JS semver specs when appropriate, evaluate release impact against the codebase and official release notes, apply required small upgrade fixes, open GitHub issues for larger or optional follow-up work, and finish by creating a branch, commit, push, and PR. Use when asked to upgrade dependencies, refresh packages, unpin dependency versions, or ship an end-to-end dependency maintenance PR.
+description: Update a JavaScript, TypeScript, or Python project's dependencies to the latest published versions, remove exact pinned JS semver specs when appropriate, convert stray JS `latest` tags back to explicit semver ranges, evaluate release impact against the codebase and official release notes, apply required small upgrade fixes, open GitHub issues for larger or optional follow-up work, and finish by creating a branch, commit, push, and PR. Use when asked to upgrade dependencies, refresh packages, unpin dependency versions, or ship an end-to-end dependency maintenance PR.
 license: MIT
 metadata:
   author: uwe
-  version: "1.2.0"
+  version: "1.3.0"
 ---
 
 # Upgrade Dependencies PR
@@ -39,7 +39,8 @@ Use this skill to take a JavaScript, TypeScript, or Python repository from outda
 - For Python manifests, update dependency declarations in `project.dependencies`, optional-dependency groups, tool-managed dependency groups, `requirements*.in`, `requirements*.txt`, and `constraints*.txt` only when those files are repo-owned sources of truth.
 - Prefer `uv` for clearly uv-managed repos (`uv.lock`, `tool.uv`, or an established `uv` workflow). For `requirements.in` / compiled `requirements.txt` repos, reuse the repo's existing compiler workflow with `uv pip compile` or `pip-compile` if present. For hand-maintained `requirements.txt` repos, update the tracked requirement specifiers directly, then re-install or sync with the repo's existing tool.
 - Preserve editable installs, local paths, VCS requirements, direct URLs, workspace links, and generated file headers unless there is a concrete reason to change them.
-- After the main JS/TS upgrade step, run `node <skill-dir>/scripts/unpin-semver-ranges.mjs <repo-root>` to convert exact `x.y.z` specs into ranged versions. Re-run the package manager install or update step if the manifests changed.
+- After the main JS/TS upgrade step, run `node <skill-dir>/scripts/unpin-semver-ranges.mjs <repo-root>` to convert exact `x.y.z` specs and any stray `latest` tags into ranged versions like `^1.2.3`. If it updates any manifest, re-run the package manager install or update step so the lockfiles match.
+- After the final JS/TS install or update pass, run `node <skill-dir>/scripts/check-no-latest-specifiers.mjs <repo-root>`. Do not proceed until it reports that no tracked `package.json` or lockfile still contains `latest`.
 - If a JS/TS upgrade introduces peer-dependency warnings or peer-range mismatches, especially around framework, compiler, or toolchain major versions, do not immediately roll the package back. Keep the latest candidate installed long enough to run validation unless the package manager refuses to install or the repo has an explicit no-peer-warning policy.
 - Do not leave exact pinned JS semver strings in `package.json` files unless the repo explicitly requires exact versions and the user asked to keep them. For Python, preserve the repo's existing pinning strategy unless the user asked to loosen it.
 
@@ -71,6 +72,7 @@ Use this skill to take a JavaScript, TypeScript, or Python repository from outda
 
 - Run the smallest complete validation set the repo supports. Prefer the repo's documented CI entrypoint when present. Otherwise use the relevant subset of: `typecheck`, `lint`, `test`, `test:unit`, `build`, `pytest`, `ruff check`, `mypy`, `pyright`.
 - If the repo has a documented CI entrypoint, use it.
+- For JS/TS repos, treat any remaining `latest` specifier in a tracked manifest or lockfile as a failed verification and fix it before committing.
 - If the only blocker is a peer warning or peer-range mismatch, run the full relevant validation suite against the upgraded version before deciding whether to keep or revert it.
 - If that validation passes, make an explicit decision: either keep the upgraded version despite the warning and document the unsupported-peer state in the PR, or revert it, pin to the highest clearly supported version, and file a follow-up issue describing the upstream blocker and why the repo is intentionally one version behind.
 - If validation fails and the failure is attributable to the unsupported upgrade, revert to the highest clearly supported version and document that decision.
@@ -90,6 +92,7 @@ Use this skill to take a JavaScript, TypeScript, or Python repository from outda
 - Required compatibility work belongs in the PR. Optional adoption work belongs in an issue.
 - Peer-dependency warnings are not an automatic rollback. Treat them as a compatibility signal that requires validation and an explicit keep-or-revert decision.
 - When a package only fails declared peer support but passes validation, either keep it with clear PR documentation or revert it and file an issue documenting the upstream blocker. Do not silently hold it back.
+- Never leave JS/TS `latest` tags in tracked manifests or lockfiles. Convert them back to explicit semver ranges such as `^1.2.3`, regenerate the lockfiles, and verify they are gone before opening the PR.
 - If the repo is Python, support `uv`, `pip`, and existing `pip-tools` style compile/sync workflows instead of rejecting it as non-JS.
 - If the repo is mixed-language, use the manifests that are actually in scope for the requested upgrade instead of assuming the root ecosystem.
 - Stop only if the repo is neither JS/TS nor Python, or if it uses dependency tooling that this skill does not yet support cleanly.
@@ -99,11 +102,20 @@ Use this skill to take a JavaScript, TypeScript, or Python repository from outda
 
 ### `scripts/unpin-semver-ranges.mjs`
 
-Normalize exact semver strings in `package.json` files to caret ranges while preserving workspace, file, git, URL, alias, and already-ranged specs. Use this only for JS/TS manifests.
+Normalize exact semver strings and stray `latest` tags in `package.json` files to caret ranges while preserving workspace, file, git, URL, alias, and already-ranged specs. Use this only for JS/TS manifests.
 
 Usage:
 ```bash
 node /absolute/path/to/upgrade-dependencies-pr/scripts/unpin-semver-ranges.mjs /path/to/repo
+```
+
+### `scripts/check-no-latest-specifiers.mjs`
+
+Fail fast when a tracked JS/TS manifest or lockfile still contains `latest` after the upgrade flow. Run this after the final install or update pass.
+
+Usage:
+```bash
+node /absolute/path/to/upgrade-dependencies-pr/scripts/check-no-latest-specifiers.mjs /path/to/repo
 ```
 
 ## References
