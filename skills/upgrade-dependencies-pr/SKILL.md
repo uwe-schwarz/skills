@@ -1,10 +1,10 @@
 ---
 name: upgrade-dependencies-pr
-description: Update a JavaScript, TypeScript, or Python project's dependencies to the latest published versions, remove exact pinned JS semver specs when appropriate, convert stray JS `latest` tags back to explicit semver ranges, evaluate release impact against the codebase and official release notes, apply required small upgrade fixes, open GitHub issues for larger or optional follow-up work, and finish by creating a branch, commit, push, and PR. Use when asked to upgrade dependencies, refresh packages, unpin dependency versions, or ship an end-to-end dependency maintenance PR.
+description: Update a JavaScript, TypeScript, or Python project's dependencies to the latest published versions, remove exact pinned JS semver specs when appropriate, convert stray JS `latest` tags back to explicit semver ranges, evaluate release impact against the codebase and official release notes, identify newly introduced features and enforcement changes, apply required small upgrade fixes, open GitHub issues for larger or optional follow-up work, and finish by creating a branch, commit, push, and PR. Use when asked to upgrade dependencies, refresh packages, unpin dependency versions, or ship an end-to-end dependency maintenance PR.
 license: MIT
 metadata:
   author: uwe
-  version: "1.3.0"
+  version: "1.4.0"
 ---
 
 # Upgrade Dependencies PR
@@ -49,6 +49,8 @@ Use this skill to take a JavaScript, TypeScript, or Python repository from outda
 - Compare manifests and lockfiles before and after the upgrade to get the set of changed packages.
 - For each changed package that has a major bump, is runtime-critical, or is used directly in code or config, inspect official changelogs, migration guides, or release notes. Use primary sources only.
 - Search the codebase for actual package usage before deciding whether a release is relevant to this project.
+- For each package you inspect, explicitly look for newly introduced features, changed defaults, deprecations that became warnings or errors, and new enforced lint, type, compiler, formatting, security, or policy rules. Do not stop at obvious breakages.
+- Every relevant new item you identify must end in one of two states before the PR is opened: adopted in the PR, or tracked in a follow-up GitHub issue with a concrete reason it was deferred.
 - Classify relevance as one of:
   - required compatibility work to keep the repo green,
   - small project-specific cleanup worth doing in the same PR,
@@ -58,14 +60,16 @@ Use this skill to take a JavaScript, TypeScript, or Python repository from outda
 
 - Apply compatibility fixes that are necessary for installs, builds, tests, or runtime correctness.
 - Also apply very small project-relevant cleanup directly when it is obvious and low risk.
+- If an upgrade introduces a new enforced lint, type, compiler, formatting, security, or policy rule, do not silently disable it just to keep the PR small. Either adopt the rule in this PR, or keep any suppression narrowly scoped and clearly temporary while creating a follow-up issue that names the deferred repo-wide work.
 - Keep fixes tightly coupled to the upgrade. Avoid unrelated refactors.
 
 ### 6. Create follow-up issues for larger or optional work
 
 - Open a GitHub issue when an upgrade reveals a useful new feature worth adopting later, a migration that is too large for the dependency PR, or cleanup that would materially expand review scope.
+- Open a GitHub issue when an upgrade introduces a new rule, policy, or default that is relevant to this repo but would cause broad churn to adopt fully in the dependency PR.
 - Also open a GitHub issue when the latest version appears viable in code but is still blocked by upstream peer-range declarations or ecosystem support policy, and the dependency PR intentionally holds that package back.
 - Use `gh issue create`.
-- The issue body should name the package and version jump, explain why it matters to this repo, summarize the deferred work, and link the official source material plus the upgrading PR when available.
+- The issue body should name the package and version jump, explain why it matters to this repo, summarize the deferred work, call out any temporary suppression or scope limitation left in the PR, and link the official source material plus the upgrading PR when available.
 - Do not create issues for noise. File issues only when the package change is genuinely relevant to the project.
 
 ### 7. Verify aggressively
@@ -77,6 +81,7 @@ Use this skill to take a JavaScript, TypeScript, or Python repository from outda
 - If that validation passes, make an explicit decision: either keep the upgraded version despite the warning and document the unsupported-peer state in the PR, or revert it, pin to the highest clearly supported version, and file a follow-up issue describing the upstream blocker and why the repo is intentionally one version behind.
 - If validation fails and the failure is attributable to the unsupported upgrade, revert to the highest clearly supported version and document that decision.
 - If an upgrade breaks validation, fix it if the remediation is required to keep the repository healthy. Do not ship a knowingly broken dependency PR.
+- Before committing, confirm that newly introduced features, defaults, and enforced rules discovered during release-note review were either adopted in the PR or captured in follow-up issues. Do not leave them undocumented.
 
 ### 8. Commit, push, and open the PR
 
@@ -84,14 +89,17 @@ Use this skill to take a JavaScript, TypeScript, or Python repository from outda
 - Use a commit title like `chore(deps): upgrade dependencies to latest`.
 - Push the branch and create a PR with `gh pr create`.
 - Make the PR body include notable package upgrades, required code or config fixes, issues created for deferred relevant work, the validation commands that were run, and any intentionally held-back packages with the reason.
+- If the PR leaves a temporary suppression or narrow opt-out for a new lint, type, compiler, formatting, security, or policy rule, say so explicitly in the PR body and link the follow-up issue.
 - Respect existing issue or PR templates when present.
 
 ## Decision Rules
 
 - Prefer primary documentation over blog posts or secondary summaries for release impact.
 - Required compatibility work belongs in the PR. Optional adoption work belongs in an issue.
+- Newly introduced features, defaults, and policy/rule changes must be explicitly triaged. Do not silently ignore them just because validation passes.
 - Peer-dependency warnings are not an automatic rollback. Treat them as a compatibility signal that requires validation and an explicit keep-or-revert decision.
 - When a package only fails declared peer support but passes validation, either keep it with clear PR documentation or revert it and file an issue documenting the upstream blocker. Do not silently hold it back.
+- If a new enforced lint, type, compiler, formatting, security, or policy rule would cause broad repo churn, either implement it in the PR or leave only a clearly temporary, narrowly scoped suppression and file an issue for the remaining work. Never add a silent permanent disable.
 - Never leave JS/TS `latest` tags in tracked manifests or lockfiles. Convert them back to explicit semver ranges such as `^1.2.3`, regenerate the lockfiles, and verify they are gone before opening the PR.
 - If the repo is Python, support `uv`, `pip`, and existing `pip-tools` style compile/sync workflows instead of rejecting it as non-JS.
 - If the repo is mixed-language, use the manifests that are actually in scope for the requested upgrade instead of assuming the root ecosystem.
