@@ -4,6 +4,8 @@
   "description": "Custom skills for AI coding agents",
   "type": "module",
   "scripts": {
+    "oxlint": "npm exec --yes --package=oxlint --package=oxlint-tsgolint -- oxlint",
+    "lint": "bun run oxlint --deny-warnings --type-aware",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [

@@ -41,6 +41,10 @@ const dependencySections = [
   "peerDependencies",
 ];
 
+function writeStdout(line) {
+  process.stdout.write(`${line}\n`);
+}
+
 async function walk(dir, found = []) {
   const entries = await fs.readdir(dir, { withFileTypes: true });
 
@@ -190,7 +194,7 @@ for (const filePath of files) {
 }
 
 if (failures.length === 0) {
-  console.log("No latest specifiers found in tracked package manifests or lockfiles.");
+  writeStdout("No latest specifiers found in tracked package manifests or lockfiles.");
   process.exit(0);
 }
 

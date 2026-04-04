@@ -99,6 +99,22 @@ npx add-skill <username>/skills
 
 Skills are automatically available once installed. The agent will use them when relevant tasks are detected.
 
+## Linting
+
+Run the full lint pass without adding project dependencies:
+
+```bash
+bun run lint
+```
+
+To pass extra `oxlint` flags through Bun, use:
+
+```bash
+bun run oxlint --deny-warnings --type-aware
+```
+
+Both commands use transient `npm exec` installs under the hood, so nothing is added to `package.json` dependencies or `node_modules`.
+
 ## Skill Structure
 
 Each skill contains:
