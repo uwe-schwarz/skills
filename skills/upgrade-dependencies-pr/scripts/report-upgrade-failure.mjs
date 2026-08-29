@@ -203,7 +203,9 @@ export function invokeProducer(
     });
     child.on("close", (exitCode) => {
       if (timedOut) {
-        finish(timeoutResult);
+        if (!producerGroupExists(child)) {
+          finish(timeoutResult);
+        }
         return;
       }
       const output = parseProducerOutput(stdout);
@@ -226,6 +228,18 @@ export function terminateProducer(child, signal) {
     }
   }
   child.kill(signal);
+}
+
+function producerGroupExists(child) {
+  if (process.platform === "win32" || !Number.isInteger(child.pid)) {
+    return false;
+  }
+  try {
+    process.kill(-child.pid, 0);
+    return true;
+  } catch (error) {
+    return error?.code !== "ESRCH";
+  }
 }
 
 export function parseProducerOutput(stdout) {

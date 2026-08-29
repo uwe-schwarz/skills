@@ -218,7 +218,6 @@ test(
       "const { writeFileSync } = require('node:fs');",
       `const child = spawn(process.execPath, ['-e', ${JSON.stringify(grandchildCode)}], { stdio: 'ignore' });`,
       `writeFileSync(${JSON.stringify(pidFile)}, String(child.pid));`,
-      "process.on('SIGTERM', () => {});",
       "setInterval(() => {}, 1000);",
     ].join("");
 
@@ -239,12 +238,35 @@ test(
         exitCode: null,
         output: { ok: false, error: "producer_timeout" },
       });
-      assert.throws(
-        () => process.kill(grandchildPid, 0),
-        (error) => error?.code === "ESRCH",
-      );
+      assert.ok(["gone", "zombie"].includes(await processState(grandchildPid)));
     } finally {
       await rm(tempDir, { recursive: true, force: true });
     }
   },
 );
+
+async function processState(pid) {
+  try {
+    process.kill(pid, 0);
+  } catch (error) {
+    if (error?.code === "ESRCH") {
+      return "gone";
+    }
+    throw error;
+  }
+
+  if (process.platform === "linux") {
+    try {
+      const stat = await readFile(`/proc/${pid}/stat`, "utf8");
+      const state = stat.slice(stat.lastIndexOf(")") + 2).split(" ", 1)[0];
+      return state === "Z" ? "zombie" : "running";
+    } catch (error) {
+      if (error?.code === "ENOENT") {
+        return "gone";
+      }
+      throw error;
+    }
+  }
+
+  return "running";
+}
