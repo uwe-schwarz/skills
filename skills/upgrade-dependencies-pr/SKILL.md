@@ -4,7 +4,7 @@ description: Update a JavaScript, TypeScript, or Python project's dependencies t
 license: MIT
 metadata:
   author: uwe
-  version: "1.4.0"
+  version: "1.5.0"
 ---
 
 # Upgrade Dependencies PR
@@ -92,6 +92,35 @@ Use this skill to take a JavaScript, TypeScript, or Python repository from outda
 - If the PR leaves a temporary suppression or narrow opt-out for a new lint, type, compiler, formatting, security, or policy rule, say so explicitly in the PR body and link the follow-up issue.
 - Respect existing issue or PR templates when present.
 
+### 9. Report unresolved scheduled-run failures
+
+This reporting path applies only when an automated scheduled upgrade ends with a failure that remains unresolved after the workflow has exhausted its in-scope repairs. Do not report successful runs, no-change runs, expected review waiting, or failures repaired during the same run.
+
+On `dev`, use Bun 1.4.0 and the versioned producer in `/home/uwe/dev/ops-triage`. That checkout must have its dependencies installed and its ignored `.env` present with mode 600. Never read, print, copy, or commit the `.env` values. The producer owns HMAC signing, retries, request redaction, and API deduplication. Do not reproduce any of those behaviors in this skill.
+
+After preserving the primary upgrade failure and its exit code, run:
+
+```sh
+bun /absolute/path/to/upgrade-dependencies-pr/scripts/report-upgrade-failure.mjs \
+  --outcome unresolved-failure \
+  --run-id "$SCHEDULED_RUN_ID" \
+  --repository "owner/repository" \
+  --project "saved-project-name" \
+  --phase "validation" \
+  --error-class "test-failure" \
+  --observed-at "2026-08-30T08:12:00.000Z" \
+  --failure-count 2 \
+  --primary-exit-code 1
+```
+
+The helper sends one bounded JSON envelope over stdin to `bun run producer` in the Ops Triage checkout. It emits only the safe `inspect` action. Its incident identity hashes the repository, project, and scheduled run identity; phase and error class remain diagnostic metadata. Reuse the same `--run-id` when the scheduler retries one occurrence, even if later diagnostics classify that failure differently. Use a new run ID for each later scheduled occurrence. Do not derive it from report time, process ID, or a random value.
+
+Reporting is best effort. The helper always exits with the original nonzero upgrade exit code. Include its JSON result after the primary error in the task result, especially when the producer cannot run or returns a nonzero exit. Never replace or hide the upgrade failure with a producer failure.
+
+For a mutation-free verification that cannot notify Slack or alter the target repository or incident ledger, add `--simulation --dry-run`. This validates the simulation envelope through the versioned producer without requiring `.env` or making a network request. Simulation without `--dry-run` writes to the simulation namespace but still cannot notify Slack.
+
+Schedule prompts must identify themselves as scheduled upgrade runs, supply a retry-stable occurrence ID, and call this helper only after the final unresolved failure. They must also preserve the primary exit code and provide the first failure time and failure count when known. The skill cannot infer scheduled context or reconstruct a stable occurrence ID after the run.
+
 ## Decision Rules
 
 - Prefer primary documentation over blog posts or secondary summaries for release impact.
@@ -125,6 +154,10 @@ Usage:
 ```bash
 node /absolute/path/to/upgrade-dependencies-pr/scripts/check-no-latest-specifiers.mjs /path/to/repo
 ```
+
+### `scripts/report-upgrade-failure.mjs`
+
+Report only a terminal unresolved scheduled-run failure through the versioned Ops Triage producer. Pass a non-reportable outcome as `--outcome success`, `--outcome no-change`, `--outcome review-waiting`, or `--outcome repaired`; the helper then exits successfully without invoking the producer.
 
 ## References
 

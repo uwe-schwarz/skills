@@ -1,8 +1,8 @@
 {
-  "version": "1.4.0",
+  "version": "1.5.0",
   "organization": "Personal",
-  "date": "March 2026",
-  "abstract": "Upgrades JavaScript, TypeScript, or Python project dependencies to latest, removes exact pinned JS semver specs, converts stray JS latest tags back to explicit ranges, identifies relevant new features and enforcement changes from release notes, validates peer-range blockers before deciding whether to keep or hold back an upgrade, files required follow-up issues for deferred adoption work, and ships the result as a GitHub pull request.",
+  "date": "August 2026",
+  "abstract": "Upgrades JavaScript, TypeScript, or Python project dependencies to latest, removes exact pinned JS semver specs, converts stray JS latest tags back to explicit ranges, identifies relevant new features and enforcement changes from release notes, validates peer-range blockers before deciding whether to keep or hold back an upgrade, files required follow-up issues for deferred adoption work, ships the result as a GitHub pull request, and reports only terminal unresolved scheduled-run failures through the versioned Ops Triage producer.",
   "references": [
     "https://docs.npmjs.com/cli/v8/commands/npm-update/",
     "https://pnpm.io/cli/update",
