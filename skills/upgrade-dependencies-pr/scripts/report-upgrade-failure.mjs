@@ -156,7 +156,7 @@ export function producerInvocation(input) {
 export function invokeProducer(
   invocation,
   envelope,
-  { timeoutMs = PRODUCER_TIMEOUT_MS } = {},
+  { timeoutMs = PRODUCER_TIMEOUT_MS, forceKillMs = 1_000 } = {},
 ) {
   return new Promise((resolve) => {
     const child = spawn(invocation.command, invocation.args, {
@@ -165,22 +165,28 @@ export function invokeProducer(
     });
     let stdout = "";
     let settled = false;
+    let timedOut = false;
+    let forceKill;
+    const timeoutResult = {
+      exitCode: null,
+      output: { ok: false, error: "producer_timeout" },
+    };
     const finish = (result) => {
       if (settled) {
         return;
       }
       settled = true;
       clearTimeout(timeout);
+      clearTimeout(forceKill);
       resolve(result);
     };
     const timeout = setTimeout(() => {
+      timedOut = true;
       child.kill("SIGTERM");
-      const forceKill = setTimeout(() => child.kill("SIGKILL"), 1_000);
-      forceKill.unref();
-      finish({
-        exitCode: null,
-        output: { ok: false, error: "producer_timeout" },
-      });
+      forceKill = setTimeout(() => {
+        child.kill("SIGKILL");
+        finish(timeoutResult);
+      }, forceKillMs);
     }, timeoutMs);
     timeout.unref();
 
@@ -195,6 +201,10 @@ export function invokeProducer(
       });
     });
     child.on("close", (exitCode) => {
+      if (timedOut) {
+        finish(timeoutResult);
+        return;
+      }
       const output = parseProducerOutput(stdout);
       finish({ exitCode, output });
     });

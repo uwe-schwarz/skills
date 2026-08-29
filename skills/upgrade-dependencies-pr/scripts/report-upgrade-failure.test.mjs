@@ -157,3 +157,27 @@ test("bounds a stalled producer process", async () => {
     output: { ok: false, error: "producer_timeout" },
   });
 });
+
+test("waits for the SIGKILL fallback when the producer ignores SIGTERM", async () => {
+  const startedAt = Date.now();
+  const result = await invokeProducer(
+    {
+      command: process.execPath,
+      args: [
+        "-e",
+        "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000)",
+      ],
+      cwd: process.cwd(),
+    },
+    {},
+    { timeoutMs: 50, forceKillMs: 50 },
+  );
+
+  const elapsed = Date.now() - startedAt;
+  assert.ok(elapsed >= 90);
+  assert.ok(elapsed < 1000);
+  assert.deepEqual(result, {
+    exitCode: null,
+    output: { ok: false, error: "producer_timeout" },
+  });
+});
