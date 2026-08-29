@@ -322,15 +322,43 @@ function parseArgs(args) {
   return result;
 }
 
+export function usageFailure(args) {
+  let primaryExitCode;
+  for (let index = 0; index < args.length - 1; index++) {
+    if (args[index] !== "--primary-exit-code") {
+      continue;
+    }
+    const candidate = Number(args[index + 1]);
+    if (Number.isInteger(candidate) && candidate >= 1 && candidate <= 255) {
+      primaryExitCode = candidate;
+      break;
+    }
+  }
+
+  if (primaryExitCode === undefined) {
+    return { exitCode: 2, output: { ok: false, error: "usage" } };
+  }
+
+  return {
+    exitCode: primaryExitCode,
+    output: {
+      ok: false,
+      primaryExitCode,
+      primaryFailurePreserved: true,
+      incidentReporting: { ok: false, error: "usage" },
+    },
+  };
+}
+
 async function main() {
+  const args = process.argv.slice(2);
   let input;
   try {
-    input = parseArgs(process.argv.slice(2));
+    input = parseArgs(args);
   } catch {
-    process.stdout.write(
-      `${JSON.stringify({ ok: false, error: "usage" })}\n`,
-    );
-    return 2;
+    const result = usageFailure(args);
+    process.stdout.write(`${JSON.stringify(result.output)}\n`);
+    return result.exitCode;
   }
 
   const result = await reportUpgradeOutcome(input);

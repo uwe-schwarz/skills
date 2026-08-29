@@ -7,6 +7,7 @@ import {
   parseProducerOutput,
   producerInvocation,
   reportUpgradeOutcome,
+  usageFailure,
 } from "./report-upgrade-failure.mjs";
 
 const unresolved = {
@@ -179,5 +180,24 @@ test("waits for the SIGKILL fallback when the producer ignores SIGTERM", async (
   assert.deepEqual(result, {
     exitCode: null,
     output: { ok: false, error: "producer_timeout" },
+  });
+});
+
+test("preserves the primary exit code on CLI usage errors", () => {
+  assert.deepEqual(
+    usageFailure(["--primary-exit-code", "17", "--bogus"]),
+    {
+      exitCode: 17,
+      output: {
+        ok: false,
+        primaryExitCode: 17,
+        primaryFailurePreserved: true,
+        incidentReporting: { ok: false, error: "usage" },
+      },
+    },
+  );
+  assert.deepEqual(usageFailure(["--bogus"]), {
+    exitCode: 2,
+    output: { ok: false, error: "usage" },
   });
 });
