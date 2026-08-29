@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import {
@@ -201,3 +204,47 @@ test("preserves the primary exit code on CLI usage errors", () => {
     output: { ok: false, error: "usage" },
   });
 });
+
+test(
+  "terminates the producer process tree",
+  { skip: process.platform === "win32" },
+  async () => {
+    const tempDir = await mkdtemp(path.join(os.tmpdir(), "upgrade-producer-test-"));
+    const pidFile = path.join(tempDir, "grandchild.pid");
+    const grandchildCode =
+      "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000)";
+    const parentCode = [
+      "const { spawn } = require('node:child_process');",
+      "const { writeFileSync } = require('node:fs');",
+      `const child = spawn(process.execPath, ['-e', ${JSON.stringify(grandchildCode)}], { stdio: 'ignore' });`,
+      `writeFileSync(${JSON.stringify(pidFile)}, String(child.pid));`,
+      "process.on('SIGTERM', () => {});",
+      "setInterval(() => {}, 1000);",
+    ].join("");
+
+    try {
+      const result = await invokeProducer(
+        {
+          command: process.execPath,
+          args: ["-e", parentCode],
+          cwd: process.cwd(),
+        },
+        {},
+        { timeoutMs: 100, forceKillMs: 50 },
+      );
+      const grandchildPid = Number(await readFile(pidFile, "utf8"));
+      await new Promise((resolve) => setTimeout(resolve, 25));
+
+      assert.deepEqual(result, {
+        exitCode: null,
+        output: { ok: false, error: "producer_timeout" },
+      });
+      assert.throws(
+        () => process.kill(grandchildPid, 0),
+        (error) => error?.code === "ESRCH",
+      );
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  },
+);

@@ -161,6 +161,7 @@ export function invokeProducer(
   return new Promise((resolve) => {
     const child = spawn(invocation.command, invocation.args, {
       cwd: invocation.cwd,
+      detached: process.platform !== "win32",
       stdio: ["pipe", "pipe", "pipe"],
     });
     let stdout = "";
@@ -182,9 +183,9 @@ export function invokeProducer(
     };
     const timeout = setTimeout(() => {
       timedOut = true;
-      child.kill("SIGTERM");
+      terminateProducer(child, "SIGTERM");
       forceKill = setTimeout(() => {
-        child.kill("SIGKILL");
+        terminateProducer(child, "SIGKILL");
         finish(timeoutResult);
       }, forceKillMs);
     }, timeoutMs);
@@ -211,6 +212,20 @@ export function invokeProducer(
     child.stdin.on("error", () => {});
     child.stdin.end(`${JSON.stringify(envelope)}\n`);
   });
+}
+
+export function terminateProducer(child, signal) {
+  if (process.platform !== "win32" && Number.isInteger(child.pid)) {
+    try {
+      process.kill(-child.pid, signal);
+      return;
+    } catch (error) {
+      if (error?.code === "ESRCH") {
+        return;
+      }
+    }
+  }
+  child.kill(signal);
 }
 
 export function parseProducerOutput(stdout) {
