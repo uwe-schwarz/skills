@@ -157,7 +157,7 @@ node /absolute/path/to/upgrade-dependencies-pr/scripts/check-no-latest-specifier
 
 ### `scripts/report-upgrade-failure.mjs`
 
-Report only a terminal unresolved scheduled-run failure through the versioned Ops Triage producer. Pass any non-reportable outcome as `--outcome success`, `no-change`, `review-waiting`, or `repaired`; the helper then exits successfully without invoking the producer.
+Report only a terminal unresolved scheduled-run failure through the versioned Ops Triage producer. Pass a non-reportable outcome as `--outcome success`, `--outcome no-change`, `--outcome review-waiting`, or `--outcome repaired`; the helper then exits successfully without invoking the producer.
 
 ## References
 
