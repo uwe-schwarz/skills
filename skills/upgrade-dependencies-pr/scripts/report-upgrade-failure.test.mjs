@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   buildReportPlan,
+  invokeProducer,
   parseProducerOutput,
   producerInvocation,
   reportUpgradeOutcome,
@@ -136,4 +137,23 @@ test("producer failure stays secondary to the primary upgrade failure", async ()
   );
   assert.deepEqual(malformed, { ok: false, error: "invalid_producer_output" });
   assert.equal(JSON.stringify(malformed).includes("abcdefghijklmnop"), false);
+});
+
+test("bounds a stalled producer process", async () => {
+  const startedAt = Date.now();
+  const result = await invokeProducer(
+    {
+      command: process.execPath,
+      args: ["-e", "setInterval(() => {}, 1000)"],
+      cwd: process.cwd(),
+    },
+    {},
+    { timeoutMs: 50 },
+  );
+
+  assert.ok(Date.now() - startedAt < 1000);
+  assert.deepEqual(result, {
+    exitCode: null,
+    output: { ok: false, error: "producer_timeout" },
+  });
 });

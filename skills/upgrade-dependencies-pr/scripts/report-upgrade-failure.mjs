@@ -6,6 +6,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const DEFAULT_OPS_TRIAGE_DIR = "/home/uwe/dev/ops-triage";
+const PRODUCER_TIMEOUT_MS = 45_000;
 const REPORTABLE_OUTCOME = "unresolved-failure";
 const QUIET_OUTCOMES = new Set([
   "success",
@@ -152,27 +153,50 @@ export function producerInvocation(input) {
   return { command: "bun", args, cwd: opsTriageDir };
 }
 
-function invokeProducer(invocation, envelope) {
+export function invokeProducer(
+  invocation,
+  envelope,
+  { timeoutMs = PRODUCER_TIMEOUT_MS } = {},
+) {
   return new Promise((resolve) => {
     const child = spawn(invocation.command, invocation.args, {
       cwd: invocation.cwd,
       stdio: ["pipe", "pipe", "pipe"],
     });
     let stdout = "";
+    let settled = false;
+    const finish = (result) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(timeout);
+      resolve(result);
+    };
+    const timeout = setTimeout(() => {
+      child.kill("SIGTERM");
+      const forceKill = setTimeout(() => child.kill("SIGKILL"), 1_000);
+      forceKill.unref();
+      finish({
+        exitCode: null,
+        output: { ok: false, error: "producer_timeout" },
+      });
+    }, timeoutMs);
+    timeout.unref();
 
     child.stdout.on("data", (chunk) => {
       stdout = `${stdout}${chunk}`.slice(-4096);
     });
     child.stderr.resume();
     child.on("error", (error) => {
-      resolve({
+      finish({
         exitCode: null,
         output: { ok: false, error: error.code ?? "producer_spawn_failed" },
       });
     });
     child.on("close", (exitCode) => {
       const output = parseProducerOutput(stdout);
-      resolve({ exitCode, output });
+      finish({ exitCode, output });
     });
     child.stdin.on("error", () => {});
     child.stdin.end(`${JSON.stringify(envelope)}\n`);
