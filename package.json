@@ -6,7 +6,7 @@
   "scripts": {
     "oxlint": "npm exec --yes --package=oxlint --package=oxlint-tsgolint -- oxlint",
     "lint": "bun run oxlint --deny-warnings --type-aware",
-    "test": "bun test skills/upgrade-dependencies-pr/scripts/report-upgrade-failure.test.mjs"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
     "skills",
