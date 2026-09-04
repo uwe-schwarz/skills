@@ -11,6 +11,8 @@ metadata:
 
 Use this skill to take a JavaScript, TypeScript, or Python repository from outdated dependencies to a reviewable dependency-upgrade PR in one pass.
 
+Follow the user's requested scope and existing authorization. Analysis-only, local-only, and explicit branch instructions override the default publication workflow below. Resolve routine implementation choices from repository evidence; ask only when a material decision remains unresolved. Loading this skill does not authorize unrelated changes or external messages.
+
 ## Preconditions
 
 - Confirm the repository uses Git and GitHub, and that `gh` is authenticated before attempting issue or PR creation.
@@ -29,7 +31,7 @@ Use this skill to take a JavaScript, TypeScript, or Python repository from outda
 
 ### 2. Create the branch first
 
-- Create a fresh branch before editing anything. Prefer `codex/deps-<project>-<yyyymmdd>` unless the repo already uses a different branch convention.
+- Unless the user specified an existing branch, create a fresh branch before editing anything. Prefer `codex/deps-<project>-<yyyymmdd>` unless the repo already uses a different branch convention.
 - Keep the branch scoped to dependency maintenance and directly related upgrade fallout.
 
 ### 3. Upgrade manifests and lockfiles
@@ -72,10 +74,10 @@ Use this skill to take a JavaScript, TypeScript, or Python repository from outda
 - The issue body should name the package and version jump, explain why it matters to this repo, summarize the deferred work, call out any temporary suppression or scope limitation left in the PR, and link the official source material plus the upgrading PR when available.
 - Do not create issues for noise. File issues only when the package change is genuinely relevant to the project.
 
-### 7. Verify aggressively
+### 7. Verify the final change
 
 - Run the smallest complete validation set the repo supports. Prefer the repo's documented CI entrypoint when present. Otherwise use the relevant subset of: `typecheck`, `lint`, `test`, `test:unit`, `build`, `pytest`, `ruff check`, `mypy`, `pyright`.
-- If the repo has a documented CI entrypoint, use it.
+- Run the required checks once at the final relevant state. Repeat or broaden successful checks only after relevant changes, failures, or unresolved concerns; do not rerun a suite solely to restate a passing result.
 - For JS/TS repos, treat any remaining `latest` specifier in a tracked manifest or lockfile as a failed verification and fix it before committing.
 - If the only blocker is a peer warning or peer-range mismatch, run the full relevant validation suite against the upgraded version before deciding whether to keep or revert it.
 - If that validation passes, make an explicit decision: either keep the upgraded version despite the warning and document the unsupported-peer state in the PR, or revert it, pin to the highest clearly supported version, and file a follow-up issue describing the upstream blocker and why the repo is intentionally one version behind.
